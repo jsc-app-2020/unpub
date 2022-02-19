@@ -1,24 +1,27 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
 import 'package:collection/collection.dart' show IterableExtension;
-import 'package:shelf/shelf.dart' as shelf;
-import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:googleapis/oauth2/v2.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
-import 'package:googleapis/oauth2/v2.dart';
-import 'package:mime/mime.dart';
-import 'package:http_parser/http_parser.dart';
-import 'package:shelf_cors_headers/shelf_cors_headers.dart';
-import 'package:shelf_router/shelf_router.dart';
 import 'package:pub_semver/pub_semver.dart' as semver;
-import 'package:archive/archive.dart';
-import 'package:unpub/src/models.dart';
-import 'package:unpub/unpub_api/lib/models.dart';
+import 'package:shelf/shelf.dart' as shelf;
+import 'package:shelf/shelf_io.dart' as shelf_io;
+import 'package:shelf_cors_headers/shelf_cors_headers.dart';
+import 'package:shelf_multipart/form_data.dart';
+import 'package:shelf_multipart/multipart.dart';
+import 'package:shelf_router/shelf_router.dart';
 import 'package:unpub/src/meta_store.dart';
+import 'package:unpub/src/models.dart';
 import 'package:unpub/src/package_store.dart';
-import 'utils.dart';
+import 'package:unpub/unpub_api/lib/models.dart';
+
 import 'static/index.html.dart' as index_html;
 import 'static/main.dart.js.dart' as main_dart_js;
+import 'utils.dart';
 
 part 'app.g.dart';
 
@@ -224,46 +227,65 @@ class App {
     try {
       var uploader = await _getUploaderEmail(req);
 
-      var contentType = req.headers['content-type'];
-      if (contentType == null) throw 'invalid content type';
-
-      var mediaType = MediaType.parse(contentType);
-      var boundary = mediaType.parameters['boundary'];
-      if (boundary == null) throw 'invalid boundary';
-
-      var transformer = MimeMultipartTransformer(boundary);
-      MimeMultipart? fileData;
-
-      // The map below makes the runtime type checker happy.
-      // https://github.com/dart-lang/pub-dev/blob/19033f8154ca1f597ef5495acbc84a2bb368f16d/app/lib/fake/server/fake_storage_server.dart#L74
-      final stream = req.read().map((a) => a).transform(transformer);
-      await for (var part in stream) {
-        if (fileData != null) continue;
-        fileData = part;
+      if (!req.isMultipartForm) {
+        throw 'invalid request content-type';
       }
 
-      var bb = await fileData!.fold(
-          BytesBuilder(), (BytesBuilder byteBuilder, d) => byteBuilder..add(d));
-      var tarballBytes = bb.takeBytes();
-      var tarBytes = GZipDecoder().decodeBytes(tarballBytes);
-      var archive = TarDecoder().decodeBytes(tarBytes);
+      // var contentType = req.headers['content-type'];
+      // if (contentType == null) throw 'invalid content type';
+
+      // var mediaType = MediaType.parse(contentType);
+      // var boundary = mediaType.parameters['boundary'];
+      // if (boundary == null) throw 'invalid boundary';
+
+      // var transformer = MimeMultipartTransformer(boundary);
+      // MimeMultipart? fileData;
+
+      // // The map below makes the runtime type checker happy.
+      // // https://github.com/dart-lang/pub-dev/blob/19033f8154ca1f597ef5495acbc84a2bb368f16d/app/lib/fake/server/fake_storage_server.dart#L74
+      // final stream = req.read().map((a) => a).transform(transformer);
+      // await for (var part in stream) {
+      //   if (fileData != null) continue;
+      //   fileData = part;
+      // }
+
+      Uint8List? tarballBytes;
       ArchiveFile? pubspecArchiveFile;
       ArchiveFile? readmeFile;
       ArchiveFile? changelogFile;
 
-      for (var file in archive.files) {
-        if (file.name == 'pubspec.yaml') {
-          pubspecArchiveFile = file;
-          continue;
+      try {
+        Multipart? fileData;
+        // Iterate over parts making up this request:
+        await for (final part in req.multipartFormData) {
+          if (part.name == 'file' || part.filename == 'package.tar.gz') {
+            fileData = part.part;
+            break;
+          }
         }
-        if (file.name.toLowerCase() == 'readme.md') {
-          readmeFile = file;
-          continue;
+
+        var bb = await fileData!.fold(BytesBuilder(),
+            (BytesBuilder byteBuilder, d) => byteBuilder..add(d));
+        tarballBytes = bb.takeBytes();
+        var tarBytes = GZipDecoder().decodeBytes(tarballBytes);
+        var archive = TarDecoder().decodeBytes(tarBytes);
+
+        for (var file in archive.files) {
+          if (file.name == 'pubspec.yaml') {
+            pubspecArchiveFile = file;
+            continue;
+          }
+          if (file.name.toLowerCase() == 'readme.md') {
+            readmeFile = file;
+            continue;
+          }
+          if (file.name.toLowerCase() == 'changelog.md') {
+            changelogFile = file;
+            continue;
+          }
         }
-        if (file.name.toLowerCase() == 'changelog.md') {
-          changelogFile = file;
-          continue;
-        }
+      } catch (e) {
+        throw 'failed to read packages.tar.gz';
       }
 
       if (pubspecArchiveFile == null) {
@@ -277,7 +299,6 @@ class App {
         await uploadValidator!(pubspec, uploader);
       }
 
-      // TODO: null
       var name = pubspec['name'] as String;
       var version = pubspec['version'] as String;
 
@@ -332,7 +353,8 @@ class App {
           .toString());
     } catch (err) {
       return shelf.Response.found(req.requestedUri
-          .resolve('/api/packages/versions/newUploadFinish?error=$err'));
+          .resolve('/api/packages/versions/newUploadFinish?error=$err')
+          .toString());
     }
   }
 
