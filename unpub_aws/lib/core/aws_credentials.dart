@@ -1,6 +1,6 @@
-import 'dart:cli';
-import 'dart:io';
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
@@ -11,13 +11,20 @@ class AwsCredentials {
   Map<String, String>? environment;
   Map<String, String>? containerCredentials;
 
-  AwsCredentials(
-      {this.awsAccessKeyId,
-      this.awsSecretAccessKey,
-      this.awsSessionToken,
-      this.environment,
-      this.containerCredentials}) {
+  final _completer = Completer<void>();
+  Future<void> ensureReady() => _completer.future;
 
+  AwsCredentials({
+    this.awsAccessKeyId,
+    this.awsSecretAccessKey,
+    this.awsSessionToken,
+    this.environment,
+    this.containerCredentials,
+  }) {
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
     final env = environment ?? Platform.environment;
     environment ??= Platform.environment;
     awsAccessKeyId = awsAccessKeyId ?? env['AWS_ACCESS_KEY_ID'];
@@ -27,7 +34,7 @@ class AwsCredentials {
 
     if ((isInContainer != null || containerCredentials != null) &&
         (awsAccessKeyId == null && awsSecretAccessKey == null)) {
-      var data = containerCredentials ?? waitFor(getContainerCredentials(env));
+      var data = containerCredentials ?? await getContainerCredentials(env);
       if (data != null) {
         awsAccessKeyId = data['AccessKeyId'];
         awsSecretAccessKey = data['SecretAccessKey'];
@@ -38,6 +45,10 @@ class AwsCredentials {
     if (awsAccessKeyId == null || awsSecretAccessKey == null) {
       throw ArgumentError(
           'You must provide a valid Access Key and Secret for AWS.');
+    }
+
+    if (!_completer.isCompleted) {
+      _completer.complete();
     }
   }
 
@@ -52,5 +63,6 @@ class AwsCredentials {
     } catch (e) {
       print('failed to get container credentials.');
     }
+    return null;
   }
 }

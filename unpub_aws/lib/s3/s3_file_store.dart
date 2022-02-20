@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:cli';
 
 import 'package:minio/minio.dart';
 import 'package:unpub/unpub.dart';
@@ -18,17 +17,27 @@ class S3Store extends PackageStore {
   Minio? minio;
   Map<String, String>? environment;
 
-  S3Store(this.bucketName,
-      {this.region,
-      this.getObjectPath,
-      this.endpoint,
-      this.credentials,
-      this.minio,
-      this.environment}) {
+  S3Store(
+    this.bucketName, {
+    this.region,
+    this.getObjectPath,
+    this.endpoint,
+    this.credentials,
+    this.minio,
+    this.environment,
+  }) {
+    _initialize();
+  }
+
+  final _completer = Completer();
+  Future<void> _ensureReady() => _completer.future;
+
+  Future<void> _initialize() async {
     final env = environment ?? Platform.environment;
 
     // Check for env vars or container credentials if none were provided.
     credentials ??= AwsCredentials(environment: env);
+    await credentials?.ensureReady();
 
     // Use a supplied minio instance or create a default
     minio ??= Minio(
@@ -44,6 +53,10 @@ class S3Store extends PackageStore {
             env['AWS_DEFAULT_REGION']!.isEmpty)) {
       throw ArgumentError('Could not determine a default region for aws.');
     }
+
+    if (!_completer.isCompleted) {
+      _completer.complete();
+    }
   }
 
   String _getObjectKey(String name, String version) {
@@ -52,12 +65,15 @@ class S3Store extends PackageStore {
 
   @override
   Future<void> upload(String name, String version, List<int> content) async {
+    await _ensureReady();
     await minio!.putObject(bucketName, _getObjectKey(name, version),
         Stream.value(Uint8List.fromList(content)));
   }
 
   @override
-  Stream<List<int>> download(String name, String version) {
-    return waitFor(minio!.getObject(bucketName, _getObjectKey(name, version)));
+  Stream<List<int>> download(String name, String version) async* {
+    await _ensureReady();
+
+    yield* await minio!.getObject(bucketName, _getObjectKey(name, version));
   }
 }
