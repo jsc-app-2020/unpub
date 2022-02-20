@@ -343,16 +343,18 @@ class App {
         changelog,
         DateTime.now(),
       );
+      
       await metaStore.addVersion(name, unpubVersion);
 
       // TODO: Upload docs
-      return shelf.Response.found(req.requestedUri
-          .resolve('/api/packages/versions/newUploadFinish')
-          .toString());
+      return shelf.Response.found(
+        req.requestedUri.resolve('/api/packages/versions/newUploadFinish'),
+      );
     } catch (err) {
-      return shelf.Response.found(req.requestedUri
-          .resolve('/api/packages/versions/newUploadFinish?error=$err')
-          .toString());
+      return shelf.Response.found(
+        req.requestedUri
+            .resolve('/api/packages/versions/newUploadFinish?error=$err'),
+      );
     }
   }
 
