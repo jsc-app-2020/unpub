@@ -264,9 +264,7 @@ class App {
           }
         }
 
-        var bb = await fileData!.fold(BytesBuilder(),
-            (BytesBuilder byteBuilder, d) => byteBuilder..add(d));
-        tarballBytes = bb.takeBytes();
+        tarballBytes = await fileData!.readBytes();
         var tarBytes = GZipDecoder().decodeBytes(tarballBytes);
         var archive = TarDecoder().decodeBytes(tarBytes);
 
