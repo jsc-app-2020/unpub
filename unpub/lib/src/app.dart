@@ -107,12 +107,14 @@ class App {
     var handler = const shelf.Pipeline()
         .addMiddleware(corsHeaders())
         .addMiddleware(shelf.logRequests())
-        .addHandler((req) async {
-      // Return 404 by default
-      // https://github.com/google/dart-neats/issues/1
-      var res = await router.call(req);
-      return res;
-    });
+        .addHandler(
+      (req) async {
+        // Return 404 by default
+        // https://github.com/google/dart-neats/issues/1
+        var res = await router.call(req);
+        return res;
+      },
+    );
     var server = await shelf_io.serve(handler, host, port);
     return server;
   }
@@ -231,24 +233,6 @@ class App {
         throw 'invalid request content-type';
       }
 
-      // var contentType = req.headers['content-type'];
-      // if (contentType == null) throw 'invalid content type';
-
-      // var mediaType = MediaType.parse(contentType);
-      // var boundary = mediaType.parameters['boundary'];
-      // if (boundary == null) throw 'invalid boundary';
-
-      // var transformer = MimeMultipartTransformer(boundary);
-      // MimeMultipart? fileData;
-
-      // // The map below makes the runtime type checker happy.
-      // // https://github.com/dart-lang/pub-dev/blob/19033f8154ca1f597ef5495acbc84a2bb368f16d/app/lib/fake/server/fake_storage_server.dart#L74
-      // final stream = req.read().map((a) => a).transform(transformer);
-      // await for (var part in stream) {
-      //   if (fileData != null) continue;
-      //   fileData = part;
-      // }
-
       Uint8List? tarballBytes;
       ArchiveFile? pubspecArchiveFile;
       ArchiveFile? readmeFile;
@@ -257,7 +241,9 @@ class App {
       try {
         Multipart? fileData;
         // Iterate over parts making up this request:
-        await for (final part in req.multipartFormData) {
+
+        final parts = await req.multipartFormData.toList();
+        for (final part in parts) {
           if (part.name == 'file' || part.filename == 'package.tar.gz') {
             fileData = part.part;
             break;
@@ -343,7 +329,7 @@ class App {
         changelog,
         DateTime.now(),
       );
-      
+
       await metaStore.addVersion(name, unpubVersion);
 
       // TODO: Upload docs
@@ -351,10 +337,12 @@ class App {
         req.requestedUri.resolve('/api/packages/versions/newUploadFinish'),
       );
     } catch (err) {
-      return shelf.Response.found(
-        req.requestedUri
-            .resolve('/api/packages/versions/newUploadFinish?error=$err'),
+      print(err);
+      final uri = req.requestedUri.resolve(
+        '/api/packages/versions/newUploadFinish?error=$err',
       );
+      print(uri);
+      return shelf.Response.found(uri);
     }
   }
 

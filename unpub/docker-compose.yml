@@ -1,0 +1,18 @@
+version: '3.1'
+
+volumes:
+  mongo_pub_store:
+
+services:
+  mongo:
+    container_name: mongodb
+    image: mongo
+    restart: always
+    volumes:
+      - mongo_pub_store:/data/db
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret
+      MONGO_INITDB_DATABASE: app
