@@ -8,6 +8,7 @@ part of 'app.dart';
 
 Router _$AppRouter(App service) {
   final router = Router();
+  router.add('GET', r'/packages/<name>.json', service.getPackageVersion);
   router.add('GET', r'/api/packages/<name>', service.getVersions);
   router.add(
       'GET', r'/api/packages/<name>/versions/<version>', service.getVersion);

@@ -139,6 +139,29 @@ class App {
 
   Router get router => _$AppRouter(this);
 
+  @Route.get('/packages/<name>.json')
+  Future<shelf.Response> getPackageVersion(
+    shelf.Request req,
+    String name,
+  ) async {
+    var package = await metaStore.queryPackage(name);
+    if (package == null) {
+      return shelf.Response.notFound(null);
+    }
+
+    return _okWithJson(
+      {
+        'name': package.name,
+        'download': package.download,
+        'created_at': package.createdAt.toIso8601String(),
+        'updated_at': package.updatedAt.toIso8601String(),
+        'versions': [
+          for (final version in package.versions) version.version,
+        ],
+      },
+    );
+  }
+
   @Route.get('/api/packages/<name>')
   Future<shelf.Response> getVersions(shelf.Request req, String name) async {
     var package = await metaStore.queryPackage(name);
