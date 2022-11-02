@@ -1,10 +1,12 @@
-import 'package:mongo_dart/mongo_dart.dart';
 import 'package:intl/intl.dart';
+import 'package:mongo_dart/mongo_dart.dart';
 import 'package:unpub/src/models.dart';
+
 import 'meta_store.dart';
 
 final packageCollection = 'packages';
 final statsCollection = 'stats';
+final versionCollection = '_version';
 
 class MongoStore extends MetaStore {
   Db db;
@@ -21,7 +23,21 @@ class MongoStore extends MetaStore {
         .find(selector)
         .map((item) => UnpubPackage.fromJson(item))
         .toList();
+
+    for (final package in packages) {
+      package.versions.addAll(await _getPackageVersions(package.name));
+    }
+
     return UnpubQueryResult(count, packages);
+  }
+
+  Future<List<UnpubVersion>> _getPackageVersions(String name) async {
+    final versions = await await db
+        .collection('${name}$versionCollection')
+        .find()
+        .map((event) => UnpubVersion.fromJson(event))
+        .toList();
+    return versions;
   }
 
   @override
@@ -29,21 +45,25 @@ class MongoStore extends MetaStore {
     var json =
         await db.collection(packageCollection).findOne(_selectByName(name));
     if (json == null) return null;
-    return UnpubPackage.fromJson(json);
+
+    final package = UnpubPackage.fromJson(json);
+    package.versions.addAll(await _getPackageVersions(package.name));
+    return package;
   }
 
   @override
   addVersion(name, version) async {
+    await db.collection('$name$versionCollection').insert(version.toJson());
     await db.collection(packageCollection).update(
-        _selectByName(name),
-        modify
-            .push('versions', version.toJson())
-            .addToSet('uploaders', version.uploader)
-            .setOnInsert('createdAt', version.createdAt)
-            .setOnInsert('private', true)
-            .setOnInsert('download', 0)
-            .set('updatedAt', version.createdAt),
-        upsert: true);
+          _selectByName(name),
+          modify
+              .addToSet('uploaders', version.uploader)
+              .setOnInsert('createdAt', version.createdAt)
+              .setOnInsert('private', true)
+              .setOnInsert('download', 0)
+              .set('updatedAt', version.createdAt),
+          upsert: true,
+        );
   }
 
   @override

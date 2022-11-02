@@ -35,7 +35,7 @@ class UnpubVersion {
 @JsonSerializable()
 class UnpubPackage {
   final String name;
-  final List<UnpubVersion> versions;
+  List<UnpubVersion> versions;
   final bool private;
   final List<String>? uploaders;
 
