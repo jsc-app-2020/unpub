@@ -130,9 +130,8 @@ class MongoStore extends MetaStore {
     dependency,
     bool fetchDeps = true,
   }) {
-    var selector = where.limit(size).skip(page * size);
-
-    //where.sortBy(sort, descending: true).limit(size).skip(page * size);
+    var selector =
+        where.sortBy(sort, descending: true).limit(size).skip(page * size);
 
     if (keyword != null) {
       selector = selector.match('name', '.*$keyword.*');
