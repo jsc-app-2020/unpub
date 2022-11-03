@@ -113,7 +113,12 @@ class App {
         return res;
       },
     );
-    var server = await shelf_io.serve(handler, host, port);
+    var server = await shelf_io.serve(
+      handler,
+      host,
+      port,
+      poweredByHeader: 'PUB.XETIA.DEV',
+    );
     return server;
   }
 
