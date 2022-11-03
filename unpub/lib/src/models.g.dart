@@ -32,7 +32,7 @@ Map<String, dynamic> _$UnpubVersionToJson(UnpubVersion instance) {
   writeNotNull('uploader', instance.uploader);
   writeNotNull('readme', instance.readme);
   writeNotNull('changelog', instance.changelog);
-  writeNotNull('createdAt', identity(instance.createdAt));
+  val['createdAt'] = identity(instance.createdAt);
   return val;
 }
 

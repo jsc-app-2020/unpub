@@ -425,11 +425,12 @@ class App {
     String? uploader;
     String? dependency;
 
-    if (q == null) {
-    } else if (q.startsWith('email:')) {
-      uploader = q.substring(6).trim();
-    } else if (q.startsWith('dependency:')) {
-      dependency = q.substring(11).trim();
+    if (q == null && q is String) {
+      if (q.startsWith('email:')) {
+        uploader = q.substring(6).trim();
+      } else if (q.startsWith('dependency:')) {
+        dependency = q.substring(11).trim();
+      }
     } else {
       keyword = q;
     }
