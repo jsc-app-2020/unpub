@@ -190,11 +190,6 @@ class App {
           Uri.parse(upstream).resolve('/api/packages/$name').toString());
     }
 
-    package.versions.sort((a, b) {
-      return semver.Version.prioritize(
-          semver.Version.parse(a.version), semver.Version.parse(b.version));
-    });
-
     var versionMaps = package.versions
         .map((item) => _versionToJson(item, req.requestedUri))
         .toList();
@@ -506,6 +501,7 @@ class App {
     var versions = package.versions
         .map((v) => DetailViewVersion(v.version, v.createdAt))
         .toList();
+
     versions.sort((a, b) {
       return semver.Version.prioritize(
           semver.Version.parse(b.version), semver.Version.parse(a.version));
