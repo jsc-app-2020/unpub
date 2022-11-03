@@ -19,6 +19,11 @@ Router _$AppRouter(App service) {
     service.index,
   );
   router.add(
+    'POST',
+    r'/api/migrateversion',
+    service.migrate,
+  );
+  router.add(
     'GET',
     r'/api/packages/<name>',
     service.getVersions,
