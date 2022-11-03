@@ -464,6 +464,7 @@ class App {
         keyword: keyword,
         uploader: uploader,
         dependency: dependency,
+        fetchDeps: false,
       );
 
       var data = ListApi(result.count, [

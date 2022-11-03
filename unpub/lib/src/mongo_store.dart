@@ -19,7 +19,9 @@ class MongoStore extends MetaStore {
   static SelectorBuilder _selectByName(String? name) => where.eq('name', name);
 
   Future<UnpubQueryResult> _queryPackagesBySelector(
-      SelectorBuilder selector) async {
+    SelectorBuilder selector, {
+    bool fetchDeps = true,
+  }) async {
     final count = await db.collection(packageCollection).count(selector);
     final packages = await db
         .collection(packageCollection)
@@ -27,18 +29,20 @@ class MongoStore extends MetaStore {
         .map((item) => UnpubPackage.fromJson(item))
         .toList();
 
-    Future<void> appendVersions(UnpubPackage package) async {
-      final versions = await _getPackageVersions(package.name);
-      package.versions.addAll(versions);
-      package.versions.sort((a, b) {
-        return semver.Version.prioritize(
-            semver.Version.parse(a.version), semver.Version.parse(b.version));
-      });
-    }
+    if (fetchDeps) {
+      Future<void> appendVersions(UnpubPackage package) async {
+        final versions = await _getPackageVersions(package.name);
+        package.versions.addAll(versions);
+        package.versions.sort((a, b) {
+          return semver.Version.prioritize(
+              semver.Version.parse(a.version), semver.Version.parse(b.version));
+        });
+      }
 
-    await Future.wait([
-      for (final package in packages) appendVersions(package),
-    ]);
+      await Future.wait([
+        for (final package in packages) appendVersions(package),
+      ]);
+    }
 
     return UnpubQueryResult(count, packages);
   }
@@ -124,6 +128,7 @@ class MongoStore extends MetaStore {
     keyword,
     uploader,
     dependency,
+    bool fetchDeps = true,
   }) {
     var selector = where.limit(size).skip(page * size);
 
@@ -143,7 +148,10 @@ class MongoStore extends MetaStore {
       });
     }
 
-    return _queryPackagesBySelector(selector);
+    return _queryPackagesBySelector(
+      selector,
+      fetchDeps: fetchDeps,
+    );
   }
 
   @override

@@ -18,6 +18,7 @@ abstract class MetaStore {
     String? keyword,
     String? uploader,
     String? dependency,
+    bool fetchDeps = true,
   });
 
   Future<void> index();
