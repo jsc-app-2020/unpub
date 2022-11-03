@@ -30,6 +30,10 @@ class MongoStore extends MetaStore {
     Future<void> appendVersions(UnpubPackage package) async {
       final versions = await _getPackageVersions(package.name);
       package.versions.addAll(versions);
+      package.versions.sort((a, b) {
+        return semver.Version.prioritize(
+            semver.Version.parse(a.version), semver.Version.parse(b.version));
+      });
     }
 
     await Future.wait([
