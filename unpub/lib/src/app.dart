@@ -109,10 +109,16 @@ class App {
         .addMiddleware(shelf.logRequests())
         .addHandler(
       (req) async {
-        // Return 404 by default
-        // https://github.com/google/dart-neats/issues/1
-        var res = await router.call(req);
-        return res;
+        try {
+          // Return 404 by default
+          // https://github.com/google/dart-neats/issues/1
+          var res = await router.call(req);
+          return res;
+        } catch (e) {
+          return shelf.Response.internalServerError(
+            body: e.toString(),
+          );
+        }
       },
     );
     var server = await shelf_io.serve(handler, host, port);
