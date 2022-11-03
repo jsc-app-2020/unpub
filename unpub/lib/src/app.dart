@@ -471,9 +471,9 @@ class App {
         for (var package in result.packages)
           ListApiPackage(
             package.name,
-            package.versions.last.pubspec['description'] as String?,
-            getPackageTags(package.versions.last.pubspec),
-            package.versions.last.version,
+            package.lastVersion!.pubspec['description'] as String?,
+            getPackageTags(package.lastVersion!.pubspec),
+            package.lastVersion!.version,
             package.updatedAt,
           )
       ]);
