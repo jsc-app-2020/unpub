@@ -142,9 +142,8 @@ class MongoStore extends MetaStore {
     }
 
     if (dependency != null) {
-      selector = selector.raw({
-        'lastVersion.pubspec.dependencies.$dependency': {r'$exists': true}
-      });
+      selector =
+          selector.exists('lastVersion.pubspec.dependencies.$dependency');
     }
 
     return _queryPackagesBySelector(
