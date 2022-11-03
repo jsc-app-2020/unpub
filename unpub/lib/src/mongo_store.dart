@@ -102,8 +102,9 @@ class MongoStore extends MetaStore {
     uploader,
     dependency,
   }) {
-    var selector =
-        where.sortBy(sort, descending: true).limit(size).skip(page * size);
+    var selector = where;
+
+    //where.sortBy(sort, descending: true).limit(size).skip(page * size);
 
     if (keyword != null) {
       selector = selector.match('name', '.*$keyword.*');
