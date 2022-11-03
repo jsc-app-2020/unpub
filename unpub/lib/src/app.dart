@@ -116,7 +116,7 @@ class App {
           return res;
         } catch (e) {
           return shelf.Response.internalServerError(
-            body: e.toString(),
+            body: 'ERROR BOSSS',
           );
         }
       },
