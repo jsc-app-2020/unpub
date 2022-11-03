@@ -420,47 +420,51 @@ class App {
 
   @Route.get('/webapi/packages')
   Future<shelf.Response> getPackages(shelf.Request req) async {
-    var params = req.requestedUri.queryParameters;
-    var size = int.tryParse(params['size'] ?? '') ?? 10;
-    var page = int.tryParse(params['page'] ?? '') ?? 0;
-    var sort = params['sort'] ?? 'download';
-    var q = params['q'];
+    try {
+      var params = req.requestedUri.queryParameters;
+      var size = int.tryParse(params['size'] ?? '') ?? 10;
+      var page = int.tryParse(params['page'] ?? '') ?? 0;
+      var sort = params['sort'] ?? 'download';
+      var q = params['q'];
 
-    String? keyword;
-    String? uploader;
-    String? dependency;
+      String? keyword;
+      String? uploader;
+      String? dependency;
 
-    if (q == null && q is String) {
-      if (q.startsWith('email:')) {
-        uploader = q.substring(6).trim();
-      } else if (q.startsWith('dependency:')) {
-        dependency = q.substring(11).trim();
+      if (q == null && q is String) {
+        if (q.startsWith('email:')) {
+          uploader = q.substring(6).trim();
+        } else if (q.startsWith('dependency:')) {
+          dependency = q.substring(11).trim();
+        }
+      } else {
+        keyword = q;
       }
-    } else {
-      keyword = q;
+
+      final result = await metaStore.queryPackages(
+        size: size,
+        page: page,
+        sort: sort,
+        keyword: keyword,
+        uploader: uploader,
+        dependency: dependency,
+      );
+
+      var data = ListApi(result.count, [
+        for (var package in result.packages)
+          ListApiPackage(
+            package.name,
+            package.versions.last.pubspec['description'] as String?,
+            getPackageTags(package.versions.last.pubspec),
+            package.versions.last.version,
+            package.updatedAt,
+          )
+      ]);
+
+      return _okWithJson({'data': data.toJson()});
+    } catch (e) {
+      return _okWithJson({'error': e.toString()});
     }
-
-    final result = await metaStore.queryPackages(
-      size: size,
-      page: page,
-      sort: sort,
-      keyword: keyword,
-      uploader: uploader,
-      dependency: dependency,
-    );
-
-    var data = ListApi(result.count, [
-      for (var package in result.packages)
-        ListApiPackage(
-          package.name,
-          package.versions.last.pubspec['description'] as String?,
-          getPackageTags(package.versions.last.pubspec),
-          package.versions.last.version,
-          package.updatedAt,
-        )
-    ]);
-
-    return _okWithJson({'data': data.toJson()});
   }
 
   @Route.get('/webapi/package/<name>/<version>')
