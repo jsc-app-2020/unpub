@@ -63,6 +63,11 @@ class MongoStore extends MetaStore {
 
     final package = UnpubPackage.fromJson(json);
     package.versions.addAll(await _getPackageVersions(package.name));
+    package.versions.sort((a, b) {
+      return semver.Version.prioritize(
+          semver.Version.parse(a.version), semver.Version.parse(b.version));
+    });
+
     return package;
   }
 
@@ -127,18 +132,16 @@ class MongoStore extends MetaStore {
     if (keyword != null) {
       selector = selector.match('name', '.*$keyword.*');
     }
+
     if (uploader != null) {
       selector = selector.eq('uploaders', uploader);
     }
-    // if (dependency != null) {
-    //   selector = selector.raw({
-    //     'versions': {
-    //       r'$elemMatch': {
-    //         'pubspec.dependencies.$dependency': {r'$exists': true}
-    //       }
-    //     }
-    //   });
-    // }
+
+    if (dependency != null) {
+      selector = selector.raw({
+        'lastVersion.pubspec.dependencies.$dependency': {r'$exists': true}
+      });
+    }
 
     return _queryPackagesBySelector(selector);
   }
@@ -171,29 +174,26 @@ class MongoStore extends MetaStore {
         .toList();
 
     for (final package in packages) {
-      for (final version in package.versions) {
-        await db.collection('$versionCollection').insert({
-          'name': package.name,
-          'version': version.toJson(),
-        });
+      if (package.versions.isNotEmpty) {
+        for (final version in package.versions) {
+          await db.collection('$versionCollection').insert({
+            'name': package.name,
+            'version': version.toJson(),
+          });
+        }
+
+        await db.collection(packageCollection).update(
+              _selectByName(package.name),
+              modify.unset('versions'),
+            );
       }
 
-      await db.collection(packageCollection).update(
-            _selectByName(package.name),
-            modify.unset('versions'),
-          );
-
       final pkg = await queryPackage(package.name);
-      pkg!.versions.sort((a, b) {
-        return semver.Version.prioritize(
-            semver.Version.parse(a.version), semver.Version.parse(b.version));
-      });
-
       await db.collection(packageCollection).update(
             _selectByName(package.name),
             modify.set(
               'lastVersion',
-              pkg.versions.last.toJson(),
+              pkg!.versions.last.toJson(),
             ),
           );
     }
