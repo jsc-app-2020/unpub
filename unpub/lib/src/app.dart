@@ -109,16 +109,8 @@ class App {
         .addMiddleware(shelf.logRequests())
         .addHandler(
       (req) async {
-        try {
-          // Return 404 by default
-          // https://github.com/google/dart-neats/issues/1
-          var res = await router.call(req);
-          return res;
-        } catch (e) {
-          return shelf.Response.internalServerError(
-            body: 'ERROR BOSSS',
-          );
-        }
+        var res = await router.call(req);
+        return res;
       },
     );
     var server = await shelf_io.serve(handler, host, port);

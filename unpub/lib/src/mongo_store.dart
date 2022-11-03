@@ -32,7 +32,7 @@ class MongoStore extends MetaStore {
   }
 
   Future<List<UnpubVersion>> _getPackageVersions(String name) async {
-    final versions = await await db
+    final versions = await db
         .collection('${name}$versionCollection')
         .find()
         .map((event) => UnpubVersion.fromJson(event))
@@ -109,15 +109,15 @@ class MongoStore extends MetaStore {
     if (uploader != null) {
       selector = selector.eq('uploaders', uploader);
     }
-    if (dependency != null) {
-      selector = selector.raw({
-        'versions': {
-          r'$elemMatch': {
-            'pubspec.dependencies.$dependency': {r'$exists': true}
-          }
-        }
-      });
-    }
+    // if (dependency != null) {
+    //   selector = selector.raw({
+    //     'versions': {
+    //       r'$elemMatch': {
+    //         'pubspec.dependencies.$dependency': {r'$exists': true}
+    //       }
+    //     }
+    //   });
+    // }
 
     return _queryPackagesBySelector(selector);
   }
