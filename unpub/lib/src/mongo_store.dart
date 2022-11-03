@@ -102,7 +102,7 @@ class MongoStore extends MetaStore {
     uploader,
     dependency,
   }) {
-    var selector = where;
+    var selector = where.limit(size).skip(page * size);
 
     //where.sortBy(sort, descending: true).limit(size).skip(page * size);
 
