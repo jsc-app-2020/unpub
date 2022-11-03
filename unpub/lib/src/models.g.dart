@@ -38,9 +38,10 @@ Map<String, dynamic> _$UnpubVersionToJson(UnpubVersion instance) {
 
 UnpubPackage _$UnpubPackageFromJson(Map<String, dynamic> json) => UnpubPackage(
       json['name'] as String,
-      (json['versions'] as List<dynamic>)
-          .map((e) => UnpubVersion.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      (json['versions'] as List<dynamic>?)
+              ?.map((e) => UnpubVersion.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
       json['private'] as bool,
       (json['uploaders'] as List<dynamic>?)?.map((e) => e as String).toList(),
       identity(json['createdAt'] as DateTime),
