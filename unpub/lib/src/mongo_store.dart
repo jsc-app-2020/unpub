@@ -24,19 +24,21 @@ class MongoStore extends MetaStore {
         .map((item) => UnpubPackage.fromJson(item))
         .toList();
 
-    for (final package in packages) {
-      try {
-        package.versions.addAll(await _getPackageVersions(package.name));
-      } catch (e) {}
+    Future<void> appendVersions(UnpubPackage package) async {
+      final versions = await _getPackageVersions(package.name);
+      package.versions.addAll(versions);
     }
+
+    await Future.wait([
+      for (final package in packages) appendVersions(package),
+    ]);
 
     return UnpubQueryResult(count, packages);
   }
 
   Future<List<UnpubVersion>> _getPackageVersions(String name) async {
     final selector = where.eq('name', name);
-    final versions =
-        await db.collection('$versionCollection').find(selector).map(
+    final versions = await db.collection(versionCollection).find(selector).map(
       (event) {
         final version = event['version'];
         return UnpubVersion.fromJson(version);
