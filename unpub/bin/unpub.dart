@@ -1,7 +1,8 @@
 import 'dart:io';
-import 'package:path/path.dart' as path;
+
 import 'package:args/args.dart';
 import 'package:mongo_dart/mongo_dart.dart';
+import 'package:path/path.dart' as path;
 import 'package:unpub/unpub.dart' as unpub;
 
 main(List<String> args) async {
@@ -13,7 +14,7 @@ main(List<String> args) async {
 
   var results = parser.parse(args);
 
-  var host = results['host'] as String?;
+  var host = results['host'] as String? ?? '0.0.0.0';
   var port = int.parse(results['port'] as String);
   var dbUri = results['database'] as String;
 
