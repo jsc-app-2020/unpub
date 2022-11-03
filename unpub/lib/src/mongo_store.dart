@@ -35,11 +35,13 @@ class MongoStore extends MetaStore {
 
   Future<List<UnpubVersion>> _getPackageVersions(String name) async {
     final selector = where.eq('name', name);
-    final versions = await db
-        .collection('$versionCollection')
-        .find(selector)
-        .map((event) => UnpubVersion.fromJson(event))
-        .toList();
+    final versions =
+        await db.collection('$versionCollection').find(selector).map(
+      (event) {
+        final version = event['version'];
+        return UnpubVersion.fromJson(version);
+      },
+    ).toList();
 
     return versions;
   }
