@@ -21,4 +21,5 @@ abstract class MetaStore {
   });
 
   Future<void> index();
+  Future<void> migrateVersions();
 }

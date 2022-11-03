@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:mongo_dart/mongo_dart.dart';
+import 'package:pub_semver/pub_semver.dart' as semver;
 import 'package:unpub/src/models.dart';
 
 import 'meta_store.dart';
@@ -73,7 +74,8 @@ class MongoStore extends MetaStore {
               .setOnInsert('createdAt', version.createdAt)
               .setOnInsert('private', true)
               .setOnInsert('download', 0)
-              .set('updatedAt', version.createdAt),
+              .set('updatedAt', version.createdAt)
+              .set('lastVersion', version.toJson()),
           upsert: true,
         );
   }
@@ -152,5 +154,42 @@ class MongoStore extends MetaStore {
         },
       );
     } catch (e) {}
+  }
+
+  @override
+  Future<void> migrateVersions() async {
+    final packages = await db
+        .collection(packageCollection)
+        .find()
+        .map((event) => UnpubPackage.fromJson(event))
+        .toList();
+
+    for (final package in packages) {
+      for (final version in package.versions) {
+        await db.collection('$versionCollection').insert({
+          'name': package.name,
+          'version': version.toJson(),
+        });
+      }
+
+      await db.collection(packageCollection).update(
+            _selectByName(package.name),
+            modify.unset('versions'),
+          );
+
+      final pkg = await queryPackage(package.name);
+      pkg!.versions.sort((a, b) {
+        return semver.Version.prioritize(
+            semver.Version.parse(a.version), semver.Version.parse(b.version));
+      });
+
+      await db.collection(packageCollection).update(
+            _selectByName(package.name),
+            modify.set(
+              'lastVersion',
+              pkg.versions.last.toJson(),
+            ),
+          );
+    }
   }
 }
