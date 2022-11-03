@@ -25,7 +25,9 @@ class MongoStore extends MetaStore {
         .toList();
 
     for (final package in packages) {
-      package.versions.addAll(await _getPackageVersions(package.name));
+      try {
+        package.versions.addAll(await _getPackageVersions(package.name));
+      } catch (e) {}
     }
 
     return UnpubQueryResult(count, packages);
