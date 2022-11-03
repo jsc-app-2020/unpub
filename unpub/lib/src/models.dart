@@ -39,6 +39,8 @@ class UnpubPackage {
   @JsonKey(defaultValue: [])
   List<UnpubVersion> versions;
 
+  UnpubVersion? lastVersion;
+
   final bool private;
   final List<String>? uploaders;
 
@@ -58,6 +60,7 @@ class UnpubPackage {
     this.createdAt,
     this.updatedAt,
     this.download,
+    this.lastVersion,
   );
 
   factory UnpubPackage.fromJson(Map<String, dynamic> map) =>

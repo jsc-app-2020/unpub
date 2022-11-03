@@ -12,7 +12,9 @@ final versionCollection = 'package_versions';
 class MongoStore extends MetaStore {
   Db db;
 
-  MongoStore(this.db);
+  MongoStore(this.db) {
+    migrateVersions();
+  }
 
   static SelectorBuilder _selectByName(String? name) => where.eq('name', name);
 

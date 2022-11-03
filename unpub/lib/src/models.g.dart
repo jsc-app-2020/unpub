@@ -47,12 +47,16 @@ UnpubPackage _$UnpubPackageFromJson(Map<String, dynamic> json) => UnpubPackage(
       identity(json['createdAt'] as DateTime),
       identity(json['updatedAt'] as DateTime),
       json['download'] as int?,
+      json['lastVersion'] == null
+          ? null
+          : UnpubVersion.fromJson(json['lastVersion'] as Map<String, dynamic>),
     );
 
 Map<String, dynamic> _$UnpubPackageToJson(UnpubPackage instance) =>
     <String, dynamic>{
       'name': instance.name,
       'versions': instance.versions,
+      'lastVersion': instance.lastVersion,
       'private': instance.private,
       'uploaders': instance.uploaders,
       'createdAt': identity(instance.createdAt),
