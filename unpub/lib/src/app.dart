@@ -165,6 +165,14 @@ class App {
     );
   }
 
+  @Route.post('/api/createindex')
+  Future<shelf.Response> index(shelf.Request req) async {
+    await metaStore.index();
+    return _okWithJson({
+      'success': true,
+    });
+  }
+
   @Route.get('/api/packages/<name>')
   Future<shelf.Response> getVersions(shelf.Request req, String name) async {
     var package = await metaStore.queryPackage(name);

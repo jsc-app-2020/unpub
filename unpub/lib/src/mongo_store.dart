@@ -134,4 +134,23 @@ class MongoStore extends MetaStore {
 
     return _queryPackagesBySelector(selector);
   }
+
+  @override
+  Future<void> index() async {
+    try {
+      await db.collection(versionCollection).createIndex(
+        keys: {
+          'name': 1,
+        },
+      );
+    } catch (e) {}
+
+    try {
+      await db.collection(packageCollection).createIndex(
+        keys: {
+          'name': 1,
+        },
+      );
+    } catch (e) {}
+  }
 }

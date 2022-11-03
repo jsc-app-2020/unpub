@@ -14,6 +14,11 @@ Router _$AppRouter(App service) {
     service.getPackageVersion,
   );
   router.add(
+    'POST',
+    r'/api/createindex',
+    service.index,
+  );
+  router.add(
     'GET',
     r'/api/packages/<name>',
     service.getVersions,

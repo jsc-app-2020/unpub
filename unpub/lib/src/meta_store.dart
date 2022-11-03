@@ -19,4 +19,6 @@ abstract class MetaStore {
     String? uploader,
     String? dependency,
   });
+
+  Future<void> index();
 }
