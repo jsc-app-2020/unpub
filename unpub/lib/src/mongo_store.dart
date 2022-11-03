@@ -6,7 +6,7 @@ import 'meta_store.dart';
 
 final packageCollection = 'packages';
 final statsCollection = 'stats';
-final versionCollection = '_version';
+final versionCollection = 'package_versions';
 
 class MongoStore extends MetaStore {
   Db db;
@@ -34,11 +34,13 @@ class MongoStore extends MetaStore {
   }
 
   Future<List<UnpubVersion>> _getPackageVersions(String name) async {
+    final selector = where.eq('name', name);
     final versions = await db
-        .collection('${name}$versionCollection')
-        .find()
+        .collection('$versionCollection')
+        .find(selector)
         .map((event) => UnpubVersion.fromJson(event))
         .toList();
+
     return versions;
   }
 
@@ -55,7 +57,11 @@ class MongoStore extends MetaStore {
 
   @override
   addVersion(name, version) async {
-    await db.collection('$name$versionCollection').insert(version.toJson());
+    await db.collection('$versionCollection').insert({
+      'name': name,
+      'version': version.toJson(),
+    });
+
     await db.collection(packageCollection).update(
           _selectByName(name),
           modify
