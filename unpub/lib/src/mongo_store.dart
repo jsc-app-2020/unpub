@@ -20,6 +20,8 @@ class MongoStore extends MetaStore {
     final db = Db(dbUri);
     try {
       await db.open();
+      await db.pingCommand();
+
       final result = await callback(db);
       return result;
     } finally {
@@ -35,33 +37,31 @@ class MongoStore extends MetaStore {
     SelectorBuilder selector, {
     bool fetchDeps = true,
   }) async {
-    final count =
-        await withDB((db) => db.collection(packageCollection).count(selector));
-
-    final packages = await withDB(
-      (db) => db
+    return await withDB((db) async {
+      final count = await db.collection(packageCollection).count(selector);
+      final packages = await db
           .collection(packageCollection)
           .find(selector)
           .map((item) => UnpubPackage.fromJson(item))
-          .toList(),
-    );
+          .toList();
 
-    if (fetchDeps) {
-      Future<void> appendVersions(UnpubPackage package) async {
-        final versions = await _getPackageVersions(package.name);
-        package.versions.addAll(versions);
-        package.versions.sort((a, b) {
-          return semver.Version.prioritize(
-              semver.Version.parse(a.version), semver.Version.parse(b.version));
-        });
+      if (fetchDeps) {
+        Future<void> appendVersions(UnpubPackage package) async {
+          final versions = await _getPackageVersions(package.name);
+          package.versions.addAll(versions);
+          package.versions.sort((a, b) {
+            return semver.Version.prioritize(semver.Version.parse(a.version),
+                semver.Version.parse(b.version));
+          });
+        }
+
+        await Future.wait([
+          for (final package in packages) appendVersions(package),
+        ]);
       }
 
-      await Future.wait([
-        for (final package in packages) appendVersions(package),
-      ]);
-    }
-
-    return UnpubQueryResult(count, packages);
+      return UnpubQueryResult(count, packages);
+    });
   }
 
   Future<List<UnpubVersion>> _getPackageVersions(String name) async {
@@ -97,15 +97,13 @@ class MongoStore extends MetaStore {
 
   @override
   addVersion(name, version) async {
-    await withDB(
-      (db) => db.collection('$versionCollection').insert({
+    await withDB((db) async {
+      await db.collection('$versionCollection').insert({
         'name': name,
         'version': version.toJson(),
-      }),
-    );
+      });
 
-    await withDB(
-      (db) => db.collection(packageCollection).update(
+      await db.collection(packageCollection).update(
             _selectByName(name),
             modify
                 .addToSet('uploaders', version.uploader)
@@ -115,16 +113,17 @@ class MongoStore extends MetaStore {
                 .set('updatedAt', version.createdAt)
                 .set('lastVersion', version.toJson()),
             upsert: true,
-          ),
-    );
+          );
+    });
   }
 
   @override
   addUploader(name, email) async {
     await withDB(
-      (db) => db
-          .collection(packageCollection)
-          .update(_selectByName(name), modify.push('uploaders', email)),
+      (db) => db.collection(packageCollection).update(
+            _selectByName(name),
+            modify.push('uploaders', email),
+          ),
     );
   }
 
