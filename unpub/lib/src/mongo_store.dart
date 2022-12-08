@@ -10,10 +10,23 @@ final statsCollection = 'stats';
 final versionCollection = 'package_versions';
 
 class MongoStore extends MetaStore {
-  Db db;
+  String dbUri;
 
-  MongoStore(this.db) {
+  MongoStore(this.dbUri) {
     migrateVersions();
+  }
+
+  Future<T> withDB<T>(Future<T> Function(Db db) callback) async {
+    final db = Db(dbUri);
+    try {
+      await db.open();
+      final result = await callback(db);
+      return result;
+    } finally {
+      if (db.isConnected) {
+        await db.close();
+      }
+    }
   }
 
   static SelectorBuilder _selectByName(String? name) => where.eq('name', name);
@@ -22,12 +35,16 @@ class MongoStore extends MetaStore {
     SelectorBuilder selector, {
     bool fetchDeps = true,
   }) async {
-    final count = await db.collection(packageCollection).count(selector);
-    final packages = await db
-        .collection(packageCollection)
-        .find(selector)
-        .map((item) => UnpubPackage.fromJson(item))
-        .toList();
+    final count =
+        await withDB((db) => db.collection(packageCollection).count(selector));
+
+    final packages = await withDB(
+      (db) => db
+          .collection(packageCollection)
+          .find(selector)
+          .map((item) => UnpubPackage.fromJson(item))
+          .toList(),
+    );
 
     if (fetchDeps) {
       Future<void> appendVersions(UnpubPackage package) async {
@@ -49,20 +66,23 @@ class MongoStore extends MetaStore {
 
   Future<List<UnpubVersion>> _getPackageVersions(String name) async {
     final selector = where.eq('name', name);
-    final versions = await db.collection(versionCollection).find(selector).map(
-      (event) {
-        final version = event['version'];
-        return UnpubVersion.fromJson(version);
-      },
-    ).toList();
+    final versions = await withDB(
+      (db) => db.collection(versionCollection).find(selector).map(
+        (event) {
+          final version = event['version'];
+          return UnpubVersion.fromJson(version);
+        },
+      ).toList(),
+    );
 
     return versions;
   }
 
   @override
   queryPackage(name) async {
-    var json =
-        await db.collection(packageCollection).findOne(_selectByName(name));
+    var json = await withDB(
+      (db) => db.collection(packageCollection).findOne(_selectByName(name)),
+    );
     if (json == null) return null;
 
     final package = UnpubPackage.fromJson(json);
@@ -77,47 +97,57 @@ class MongoStore extends MetaStore {
 
   @override
   addVersion(name, version) async {
-    await db.collection('$versionCollection').insert({
-      'name': name,
-      'version': version.toJson(),
-    });
+    await withDB(
+      (db) => db.collection('$versionCollection').insert({
+        'name': name,
+        'version': version.toJson(),
+      }),
+    );
 
-    await db.collection(packageCollection).update(
-          _selectByName(name),
-          modify
-              .addToSet('uploaders', version.uploader)
-              .setOnInsert('createdAt', version.createdAt)
-              .setOnInsert('private', true)
-              .setOnInsert('download', 0)
-              .set('updatedAt', version.createdAt)
-              .set('lastVersion', version.toJson()),
-          upsert: true,
-        );
+    await withDB(
+      (db) => db.collection(packageCollection).update(
+            _selectByName(name),
+            modify
+                .addToSet('uploaders', version.uploader)
+                .setOnInsert('createdAt', version.createdAt)
+                .setOnInsert('private', true)
+                .setOnInsert('download', 0)
+                .set('updatedAt', version.createdAt)
+                .set('lastVersion', version.toJson()),
+            upsert: true,
+          ),
+    );
   }
 
   @override
   addUploader(name, email) async {
-    await db
-        .collection(packageCollection)
-        .update(_selectByName(name), modify.push('uploaders', email));
+    await withDB(
+      (db) => db
+          .collection(packageCollection)
+          .update(_selectByName(name), modify.push('uploaders', email)),
+    );
   }
 
   @override
   removeUploader(name, email) async {
-    await db
-        .collection(packageCollection)
-        .update(_selectByName(name), modify.pull('uploaders', email));
+    await withDB(
+      (db) => db
+          .collection(packageCollection)
+          .update(_selectByName(name), modify.pull('uploaders', email)),
+    );
   }
 
   @override
   increaseDownloads(name, version) {
     var today = DateFormat('yyyyMMdd').format(DateTime.now());
-    db
-        .collection(packageCollection)
-        .update(_selectByName(name), modify.inc('download', 1));
-    db
-        .collection(statsCollection)
-        .update(_selectByName(name), modify.inc('d$today', 1));
+    withDB((db) async {
+      await db
+          .collection(packageCollection)
+          .update(_selectByName(name), modify.inc('download', 1));
+      await db
+          .collection(statsCollection)
+          .update(_selectByName(name), modify.inc('d$today', 1));
+    });
   }
 
   @override
@@ -154,54 +184,58 @@ class MongoStore extends MetaStore {
 
   @override
   Future<void> index() async {
-    try {
-      await db.collection(versionCollection).createIndex(
-        keys: {
-          'name': 1,
-        },
-      );
-    } catch (e) {}
+    await withDB((db) async {
+      try {
+        await db.collection(versionCollection).createIndex(
+          keys: {
+            'name': 1,
+          },
+        );
+      } catch (e) {}
 
-    try {
-      await db.collection(packageCollection).createIndex(
-        keys: {
-          'name': 1,
-        },
-      );
-    } catch (e) {}
+      try {
+        await db.collection(packageCollection).createIndex(
+          keys: {
+            'name': 1,
+          },
+        );
+      } catch (e) {}
+    });
   }
 
   @override
   Future<void> migrateVersions() async {
-    final packages = await db
-        .collection(packageCollection)
-        .find()
-        .map((event) => UnpubPackage.fromJson(event))
-        .toList();
+    await withDB((db) async {
+      final packages = await db
+          .collection(packageCollection)
+          .find()
+          .map((event) => UnpubPackage.fromJson(event))
+          .toList();
 
-    for (final package in packages) {
-      if (package.versions.isNotEmpty) {
-        for (final version in package.versions) {
-          await db.collection('$versionCollection').insert({
-            'name': package.name,
-            'version': version.toJson(),
-          });
+      for (final package in packages) {
+        if (package.versions.isNotEmpty) {
+          for (final version in package.versions) {
+            await db.collection('$versionCollection').insert({
+              'name': package.name,
+              'version': version.toJson(),
+            });
+          }
+
+          await db.collection(packageCollection).update(
+                _selectByName(package.name),
+                modify.unset('versions'),
+              );
         }
 
+        final pkg = await queryPackage(package.name);
         await db.collection(packageCollection).update(
               _selectByName(package.name),
-              modify.unset('versions'),
+              modify.set(
+                'lastVersion',
+                pkg!.versions.last.toJson(),
+              ),
             );
       }
-
-      final pkg = await queryPackage(package.name);
-      await db.collection(packageCollection).update(
-            _selectByName(package.name),
-            modify.set(
-              'lastVersion',
-              pkg!.versions.last.toJson(),
-            ),
-          );
-    }
+    });
   }
 }
