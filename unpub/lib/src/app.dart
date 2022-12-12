@@ -505,7 +505,7 @@ class App {
   Future<shelf.Response> getPackageDetail(
       shelf.Request req, String name, String version) async {
     var package = version == 'latest'
-        ? await metaStore.queryPackageOnly(name)
+        ? await metaStore.queryPackage(name)
         : await metaStore.queryPackageVersion(name, version);
     if (package == null) {
       return _okWithJson({'error': 'package not exists'});
