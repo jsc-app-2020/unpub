@@ -1,4 +1,3 @@
-import 'package:mongo_dart/mongo_dart.dart';
 import 'package:path/path.dart' as path;
 import 'package:unpub/unpub.dart' as unpub;
 
@@ -15,19 +14,10 @@ Future<void> main() async {
   var port = 8080;
   var dbUri = 'mongodb://admin:secret@localhost:27017/app?authSource=admin';
 
-  // if (results.rest.isNotEmpty) {
-  //   print('Got unexpected arguments: "${results.rest.join(' ')}".\n\nUsage:\n');
-  //   print(parser.usage);
-  //   exit(1);
-  // }
-
-  final db = Db(dbUri);
-  await db.open();
-
   var baseDir = path.absolute('unpub-packages');
 
   var app = unpub.App(
-    metaStore: unpub.MongoStore(db),
+    metaStore: unpub.MongoStore(dbUri),
     packageStore: unpub.FileStore(baseDir),
     overrideUploaderEmail: 'mr.poetra22@gmail.com',
   );
