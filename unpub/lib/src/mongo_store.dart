@@ -63,7 +63,7 @@ class MongoStore extends MetaStore {
       _getPackageVersions(name);
 
   Future<List<UnpubVersion>> _getPackageVersions(String name,
-      [String? version, bool asc = true]) async {
+      {String? version, bool asc = true}) async {
     final versions = await withDB(
       (db) {
         final pipeline = <Map<String, Object>>[
@@ -162,14 +162,20 @@ class MongoStore extends MetaStore {
   }
 
   @override
-  queryPackage(name) async {
+  queryPackage(
+    name, {
+    bool versionsSortAsc = true,
+  }) async {
     var json = await withDB(
       (db) => db.collection(packageCollection).findOne(_selectByName(name)),
     );
     if (json == null) return null;
 
     final package = UnpubPackage.fromJson(json);
-    package.versions.addAll(await _getPackageVersions(package.name));
+    package.versions.addAll(await _getPackageVersions(
+      package.name,
+      asc: versionsSortAsc,
+    ));
 
     return package;
   }
@@ -336,7 +342,10 @@ class MongoStore extends MetaStore {
     if (json == null) return null;
 
     final package = UnpubPackage.fromJson(json);
-    package.versions.addAll(await _getPackageVersions(package.name, version));
+    package.versions.addAll(await _getPackageVersions(
+      package.name,
+      version: version,
+    ));
     if (package.versions.isEmpty) {
       return null;
     }

@@ -1,7 +1,11 @@
 import 'package:unpub/src/models.dart';
 
 abstract class MetaStore {
-  Future<UnpubPackage?> queryPackage(String name);
+  Future<UnpubPackage?> queryPackage(
+    String name, {
+    bool versionsSortAsc = true,
+  });
+
   Future<UnpubPackage?> queryPackageOnly(String name);
   Future<UnpubPackage?> queryPackageVersion(String name, String version);
 
