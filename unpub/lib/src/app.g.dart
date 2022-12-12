@@ -19,10 +19,12 @@ Router _$AppRouter(App service) {
     service.index,
   );
   router.add(
-    'POST',
-    r'/api/migrateversion',
-    service.migrate,
-  );
+      'GET', r'/api/packages/versions/newUploadFinish', service.uploadFinish);
+  router.add('POST', r'/api/packages/<name>/uploaders', service.addUploader);
+  router.add('DELETE', r'/api/packages/<name>/uploaders/<email>',
+      service.removeUploader);
+  router.add('GET', r'/webapi/packages', service.getPackages);
+  router.add('GET', r'/packages/<name>.json', service.getPackageVersions);
   router.add(
     'GET',
     r'/api/packages/<name>',
