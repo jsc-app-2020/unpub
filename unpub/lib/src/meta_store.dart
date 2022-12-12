@@ -2,6 +2,8 @@ import 'package:unpub/src/models.dart';
 
 abstract class MetaStore {
   Future<UnpubPackage?> queryPackage(String name);
+  Future<UnpubPackage?> queryPackageOnly(String name);
+  Future<UnpubPackage?> queryPackageVersion(String name, String version);
 
   Future<void> addVersion(String name, UnpubVersion version);
 

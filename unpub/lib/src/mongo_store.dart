@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
+import 'package:meta/meta.dart';
 import 'package:mongo_dart/mongo_dart.dart';
-import 'package:pub_semver/pub_semver.dart' as semver;
 import 'package:unpub/src/models.dart';
 
 import 'meta_store.dart';
@@ -47,10 +47,6 @@ class MongoStore extends MetaStore {
         Future<void> appendVersions(UnpubPackage package) async {
           final versions = await _getPackageVersions(package.name);
           package.versions.addAll(versions);
-          package.versions.sort((a, b) {
-            return semver.Version.prioritize(semver.Version.parse(a.version),
-                semver.Version.parse(b.version));
-          });
         }
 
         await Future.wait([
@@ -62,15 +58,104 @@ class MongoStore extends MetaStore {
     });
   }
 
-  Future<List<UnpubVersion>> _getPackageVersions(String name) async {
-    final selector = where.eq('name', name);
+  @visibleForTesting
+  Future<List<UnpubVersion>> getPackageVersionsTest(String name) =>
+      _getPackageVersions(name);
+
+  Future<List<UnpubVersion>> _getPackageVersions(String name,
+      [String? version, bool asc = true]) async {
     final versions = await withDB(
-      (db) => db.collection(versionCollection).find(selector).map(
-        (event) {
-          final version = event['version'];
-          return UnpubVersion.fromJson(version);
-        },
-      ).toList(),
+      (db) {
+        final pipeline = <Map<String, Object>>[
+          {
+            r'$match': {
+              r'$and': [
+                {
+                  'name': name,
+                },
+                if (version != null)
+                  {
+                    'version.version': version,
+                  },
+              ]
+            },
+          },
+          {
+            r'$addFields': {
+              'version_array': {
+                r'$map': {
+                  'input': {
+                    r'$split': [
+                      {
+                        r'$replaceAll': {
+                          'input': r"$version.version",
+                          'find': '+',
+                          'replacement': '.'
+                        }
+                      },
+                      "."
+                    ]
+                  },
+                  'as': 'vn',
+                  'in': {r'$toInt': r"$$vn"}
+                }
+              },
+            }
+          },
+          {
+            r'$addFields': {
+              "major": {
+                r'$ifNull': [
+                  {
+                    r'$arrayElemAt': [r"$version_array", 0]
+                  },
+                  0
+                ]
+              },
+              "minor": {
+                r'$ifNull': [
+                  {
+                    r'$arrayElemAt': [r"$version_array", 1]
+                  },
+                  0
+                ]
+              },
+              "patch": {
+                r'$ifNull': [
+                  {
+                    r'$arrayElemAt': [r"$version_array", 2]
+                  },
+                  0
+                ]
+              },
+              "build": {
+                r'$ifNull': [
+                  {
+                    r'$arrayElemAt': [r"$version_array", 3]
+                  },
+                  0
+                ]
+              }
+            }
+          },
+          {r'$unset': "version_array"},
+          {
+            r'$sort': {
+              'major': asc ? 1 : -1,
+              'minor': asc ? 1 : -1,
+              'patch': asc ? 1 : -1,
+              'build': asc ? 1 : -1,
+            }
+          }
+        ];
+
+        return db.collection(versionCollection).aggregateToStream(pipeline).map(
+          (event) {
+            final version = event['version'];
+            return UnpubVersion.fromJson(version);
+          },
+        ).toList();
+      },
     );
 
     return versions;
@@ -85,11 +170,18 @@ class MongoStore extends MetaStore {
 
     final package = UnpubPackage.fromJson(json);
     package.versions.addAll(await _getPackageVersions(package.name));
-    package.versions.sort((a, b) {
-      return semver.Version.prioritize(
-          semver.Version.parse(a.version), semver.Version.parse(b.version));
-    });
 
+    return package;
+  }
+
+  @override
+  queryPackageOnly(name) async {
+    var json = await withDB(
+      (db) => db.collection(packageCollection).findOne(_selectByName(name)),
+    );
+    if (json == null) return null;
+
+    final package = UnpubPackage.fromJson(json);
     return package;
   }
 
@@ -234,5 +326,21 @@ class MongoStore extends MetaStore {
             );
       }
     });
+  }
+
+  @override
+  Future<UnpubPackage?> queryPackageVersion(String name, String version) async {
+    var json = await withDB(
+      (db) => db.collection(packageCollection).findOne(_selectByName(name)),
+    );
+    if (json == null) return null;
+
+    final package = UnpubPackage.fromJson(json);
+    package.versions.addAll(await _getPackageVersions(package.name, version));
+    if (package.versions.isEmpty) {
+      return null;
+    }
+
+    return package;
   }
 }
