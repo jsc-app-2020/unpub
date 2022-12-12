@@ -141,6 +141,17 @@ class MongoStore extends MetaStore {
           {r'$unset': "version_array"},
           {
             r'$sort': {
+              'major': -1,
+              'minor': -1,
+              'patch': -1,
+              'build': -1,
+            }
+          },
+          {
+            r'$limit': 25,
+          },
+          {
+            r'$sort': {
               'major': asc ? 1 : -1,
               'minor': asc ? 1 : -1,
               'patch': asc ? 1 : -1,
