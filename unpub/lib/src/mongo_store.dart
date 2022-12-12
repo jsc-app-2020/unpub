@@ -12,9 +12,7 @@ final versionCollection = 'package_versions';
 class MongoStore extends MetaStore {
   String dbUri;
 
-  MongoStore(this.dbUri) {
-    migrateVersions();
-  }
+  MongoStore(this.dbUri);
 
   Future<T> withDB<T>(Future<T> Function(Db db) callback) async {
     final db = Db(dbUri);
