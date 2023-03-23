@@ -3,7 +3,7 @@ description: Self-hosted private Dart Pub server for Enterprise, with a simple w
 version: 2.0.1-dev.0
 homepage: https://github.com/bytedance/unpub
 environment:
-  sdk: ">=2.19.5 <3.0.0"
+  sdk: ">=2.19.0 <3.0.0"
 executables:
   unpub: unpub
 dependencies:
